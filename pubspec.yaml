@@ -1,7 +1,7 @@
 name: infinite_music
 description: Infinite Music — offline-first music app with custom catalog.
 publish_to: 'none'
-version: 0.2.3
+version: 0.2.2
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
