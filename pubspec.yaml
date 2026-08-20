@@ -1,7 +1,7 @@
 name: infinite_music
 description: Infinite Music — offline-first music app with custom catalog.
 publish_to: 'none'
-version: 0.2.2
+version: 0.2.3
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -42,8 +42,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/app_icon.png
-    - assets/icon/app_icon_foreground.png
-    - assets/icon/splash_mark.png
 
 flutter_native_splash:
   color: "#0B0B14"
