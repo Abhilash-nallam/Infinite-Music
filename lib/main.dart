@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'database/app_database.dart';
+import 'models/audio_player_controller.dart';
 import 'models/player_state.dart';
 import 'providers/catalog_provider.dart';
 import 'providers/local_music_provider.dart';
@@ -20,26 +22,41 @@ const _configuredApiBaseUrl = String.fromEnvironment('INFINITE_MUSIC_API_BASE_UR
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final audioHandler = await AudioService.init(
-    builder: () => InfiniteAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.example.infinite_music.audio.v3',
-      androidNotificationChannelName: 'Infinite Music playback',
-      androidNotificationChannelDescription:
-          'Playback controls for Infinite Music',
-      androidNotificationOngoing: false,
-      androidStopForegroundOnPause: false,
-      androidNotificationIcon: 'drawable/ic_stat_music_note',
-      androidShowNotificationBadge: false,
-      androidNotificationClickStartsActivity: true,
-      preloadArtwork: true,
-    ),
-  );
-
   final prefs = await SharedPreferences.getInstance();
   final settings = AppPreferences(prefs);
   final library = LibraryStore(prefs);
   final db = AppDatabase();
+
+  InfiniteAudioHandler? audioHandler;
+  PlayerState? startupPlayerState;
+
+  // Background audio must never prevent the main UI from opening.
+  try {
+    audioHandler = await AudioService.init(
+      builder: () => InfiniteAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.example.infinite_music.audio.v3',
+        androidNotificationChannelName: 'Infinite Music playback',
+        androidNotificationChannelDescription:
+            'Playback controls for Infinite Music',
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false,
+        androidNotificationIcon: 'drawable/ic_stat_music_note',
+        androidShowNotificationBadge: false,
+        androidNotificationClickStartsActivity: true,
+        preloadArtwork: true,
+      ),
+    ).timeout(const Duration(seconds: 8));
+  } catch (error, stackTrace) {
+    debugPrint('AudioService unavailable; using local playback fallback: $error');
+    debugPrintStack(stackTrace: stackTrace);
+    startupPlayerState = PlayerState(
+      controller: JustAudioPlayerController(),
+      settings: settings,
+      library: library,
+    );
+  }
+
   final api = _configuredApiBaseUrl.isNotEmpty
       ? ApiService(baseUrl: _configuredApiBaseUrl)
       : ApiService.forEmulator();
@@ -51,6 +68,7 @@ Future<void> main() async {
       syncService: syncService,
       settings: settings,
       library: library,
+      playerState: startupPlayerState,
       backgroundHandler: audioHandler,
     ),
   );
