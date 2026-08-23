@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import '../widgets/app_logo.dart';
 import 'settings_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'library_screen.dart';
@@ -57,7 +56,11 @@ class ProfileScreen extends StatelessWidget {
                       colors: [AppColors.violet, AppColors.amber],
                     ),
                   ),
-                  child: const AppLogo(size: 58),
+                  child: const Icon(
+                    Icons.music_note_rounded,
+                    color: Colors.white,
+                    size: 30,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -132,9 +135,7 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Playback, data, notifications and more',
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const SettingsScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
                 ),
               ),
               const Divider(height: 1),
@@ -165,9 +166,7 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Control how the app accesses device music',
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const PrivacyPolicyScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
                 ),
               ),
             ],
@@ -192,16 +191,11 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome_rounded,
-                color: AppColors.amber, size: 34),
+            Icon(Icons.auto_awesome_rounded, color: AppColors.amber, size: 34),
             SizedBox(height: 12),
             Text(
               'Infinite Music plans',
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700),
             ),
             SizedBox(height: 8),
             Text(
@@ -221,39 +215,17 @@ class _QuickStats extends StatelessWidget {
   final VoidCallback onLiked;
   final VoidCallback onPlaylists;
 
-  const _QuickStats({
-    required this.onDevice,
-    required this.onLiked,
-    required this.onPlaylists,
-  });
+  const _QuickStats({required this.onDevice, required this.onLiked, required this.onPlaylists});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.music_note_rounded,
-            label: 'Device',
-            onTap: onDevice,
-          ),
-        ),
+        Expanded(child: _StatCard(icon: Icons.music_note_rounded, label: 'Device', onTap: onDevice)),
         const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.favorite_rounded,
-            label: 'Liked',
-            onTap: onLiked,
-          ),
-        ),
+        Expanded(child: _StatCard(icon: Icons.favorite_rounded, label: 'Liked', onTap: onLiked)),
         const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.queue_music_rounded,
-            label: 'Playlists',
-            onTap: onPlaylists,
-          ),
-        ),
+        Expanded(child: _StatCard(icon: Icons.queue_music_rounded, label: 'Playlists', onTap: onPlaylists)),
       ],
     );
   }
@@ -264,11 +236,7 @@ class _StatCard extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _StatCard({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -279,18 +247,12 @@ class _StatCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: AppColors.bgElevated,
-            borderRadius: BorderRadius.circular(16),
-          ),
+          decoration: BoxDecoration(color: AppColors.bgElevated, borderRadius: BorderRadius.circular(16)),
           child: Column(
             children: [
               Icon(icon, color: AppColors.violetSoft, size: 20),
               const SizedBox(height: 6),
-              Text(
-                label,
-                style: const TextStyle(color: AppColors.muted, fontSize: 10),
-              ),
+              Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 10)),
             ],
           ),
         ),
@@ -301,38 +263,25 @@ class _StatCard extends StatelessWidget {
 
 class _ProfileSectionTitle extends StatelessWidget {
   final String title;
-
   const _ProfileSectionTitle(this.title);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 9),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.muted,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: .8,
-        ),
-      ),
+      child: Text(title, style: const TextStyle(color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: .8)),
     );
   }
 }
 
 class _MenuCard extends StatelessWidget {
   final List<Widget> children;
-
   const _MenuCard({required this.children});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(18),
-      ),
+      decoration: BoxDecoration(color: AppColors.bgElevated, borderRadius: BorderRadius.circular(18)),
       child: Column(children: children),
     );
   }
@@ -344,12 +293,7 @@ class _MenuTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _MenuTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+  const _MenuTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -358,31 +302,15 @@ class _MenuTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: AppColors.violet.withValues(alpha: .12),
-          borderRadius: BorderRadius.circular(12),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(color: AppColors.violet.withValues(alpha: .12), borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: AppColors.violetSoft, size: 20),
         ),
-        child: Icon(icon, color: AppColors.violetSoft, size: 20),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.text,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
-      ),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
-        color: AppColors.muted,
-      ),
+        title: Text(title, style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 10.5)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
         onTap: onTap,
       ),
     );
