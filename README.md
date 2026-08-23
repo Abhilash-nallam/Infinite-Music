@@ -58,7 +58,7 @@ flutter analyze
 flutter test
 ```
 
-GitHub Actions runs the same dependency installation, Drift code generation, analysis and test suite on pushes to `main`/`cleanup-and-bugfix` and on pull requests to `main`.
+GitHub Actions runs dependency installation, Drift code generation, analysis and tests on `main`/`cleanup-and-bugfix-final` and on pull requests to `main`.
 
 ### Run on Android emulator
 
