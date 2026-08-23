@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:audio_service/audio_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'database/app_database.dart';
+import 'models/audio_player_controller.dart';
 import 'models/player_state.dart';
 import 'providers/catalog_provider.dart';
 import 'providers/local_music_provider.dart';
 import 'screens/root_shell.dart';
 import 'services/api_service.dart';
-import 'services/background_audio_handler.dart';
 import 'services/app_preferences.dart';
 import 'services/library_store.dart';
 import 'services/sync_service.dart';
@@ -20,26 +19,19 @@ const _configuredApiBaseUrl = String.fromEnvironment('INFINITE_MUSIC_API_BASE_UR
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final audioHandler = await AudioService.init(
-    builder: () => InfiniteAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.example.infinite_music.audio.v3',
-      androidNotificationChannelName: 'Infinite Music playback',
-      androidNotificationChannelDescription:
-          'Playback controls for Infinite Music',
-      androidNotificationOngoing: false,
-      androidStopForegroundOnPause: false,
-      androidNotificationIcon: 'drawable/ic_stat_music_note',
-      androidShowNotificationBadge: false,
-      androidNotificationClickStartsActivity: true,
-      preloadArtwork: true,
-    ),
-  );
-
+  // Start the Flutter UI with a plain just_audio controller. The Android
+  // media-service bridge is intentionally not initialized during app startup;
+  // a broken media-service/plugin registration must never close the app.
   final prefs = await SharedPreferences.getInstance();
   final settings = AppPreferences(prefs);
   final library = LibraryStore(prefs);
   final db = AppDatabase();
+  final playerState = PlayerState(
+    controller: JustAudioPlayerController(),
+    settings: settings,
+    library: library,
+  );
+
   final api = _configuredApiBaseUrl.isNotEmpty
       ? ApiService(baseUrl: _configuredApiBaseUrl)
       : ApiService.forEmulator();
@@ -51,7 +43,7 @@ Future<void> main() async {
       syncService: syncService,
       settings: settings,
       library: library,
-      backgroundHandler: audioHandler,
+      playerState: playerState,
     ),
   );
 }
@@ -63,7 +55,6 @@ class InfiniteMusicApp extends StatelessWidget {
   final LibraryStore library;
   final PlayerState? playerState;
   final bool autoSyncCatalog;
-  final InfiniteAudioHandler? backgroundHandler;
 
   const InfiniteMusicApp({
     super.key,
@@ -73,7 +64,6 @@ class InfiniteMusicApp extends StatelessWidget {
     required this.library,
     this.playerState,
     this.autoSyncCatalog = true,
-    this.backgroundHandler,
   });
 
   @override
@@ -82,11 +72,11 @@ class InfiniteMusicApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(value: library),
-        ChangeNotifierProvider(
-          create: (_) => playerState ?? PlayerState(
+        ChangeNotifierProvider.value(
+          value: playerState ?? PlayerState(
+            controller: JustAudioPlayerController(),
             settings: settings,
             library: library,
-            backgroundHandler: backgroundHandler,
           ),
         ),
         ChangeNotifierProvider(

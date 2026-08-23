@@ -1,34 +1,52 @@
-import 'package:on_audio_query/on_audio_query.dart';
+import 'package:flutter/foundation.dart';
+import 'package:on_audio_query_pluse/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../models/song.dart';
 
-/// Scans the device's local storage for audio files and maps them into
-/// the app's Song model. Android 13+ (API 33) uses the scoped READ_MEDIA_AUDIO
-/// permission; older versions fall back to READ_EXTERNAL_STORAGE. Both are
-/// requested via `permission_handler`; be sure to also declare them in
-/// android/app/src/main/AndroidManifest.xml (see README).
+/// Reads songs from Android MediaStore.
+///
+/// The on_audio_query plugin owns the media-library permission flow. Using
+/// permission_handler for the query permission can report a granted state
+/// that does not match the plugin's native permission controller, which can
+/// make querySongs fail inside the Android MethodChannel.
 class LocalMusicService {
   final OnAudioQuery _audioQuery = OnAudioQuery();
 
   Future<bool> requestPermission() async {
-    // permission_handler's Permission.audio maps to READ_MEDIA_AUDIO on
-    // Android 13+ and is a no-op-safe fallback path on older versions where
-    // Permission.storage is the one that actually matters.
-    final audioStatus = await Permission.audio.status;
-    if (audioStatus.isGranted) return true;
+    try {
+      // Let on_audio_query_pluse check/request the exact permission it uses
+      // before any MediaStore query is made.
+      final granted = await _audioQuery.checkAndRequest(retryRequest: false);
+      if (granted) return true;
+    } catch (e) {
+      debugPrint('Media permission request failed: $e');
+    }
 
-    final requestedAudio = await Permission.audio.request();
-    if (requestedAudio.isGranted) return true;
+    // Keep permission_handler only as a fallback for older Android versions.
+    try {
+      final audioStatus = await Permission.audio.status;
+      if (audioStatus.isGranted) return true;
+      final requested = await Permission.audio.request();
+      if (requested.isGranted) {
+        // Verify with the same native permission controller used by
+        // on_audio_query before allowing querySongs to run.
+        return await _audioQuery.permissionsStatus();
+      }
+    } catch (e) {
+      debugPrint('Fallback media permission request failed: $e');
+    }
 
-    final storageStatus = await Permission.storage.request();
-    return storageStatus.isGranted;
+    return false;
   }
 
-  /// Returns true if permission is permanently denied — caller should
-  /// prompt the user to open Settings manually in that case.
   Future<bool> isPermanentlyDenied() async {
-    return await Permission.audio.isPermanentlyDenied ||
-        await Permission.storage.isPermanentlyDenied;
+    try {
+      return await Permission.audio.isPermanentlyDenied ||
+          await Permission.storage.isPermanentlyDenied;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<List<Song>> fetchDeviceSongs({bool assumePermission = false}) async {
@@ -37,30 +55,41 @@ class LocalMusicService {
       if (!granted) return [];
     }
 
-    final tracks = await _audioQuery.querySongs(
-      sortType: SongSortType.TITLE,
-      orderType: OrderType.ASC_OR_SMALLER,
-      uriType: UriType.EXTERNAL,
-      ignoreCase: true,
-    );
+    // Never query MediaStore unless the plugin itself confirms access.
+    try {
+      final hasAccess = await _audioQuery.permissionsStatus();
+      if (!hasAccess) return [];
 
-    return tracks
-        .where((t) => t.isMusic == true && t.duration != null && t.duration! > 0)
-        .map((t) => Song(
-              id: 'local_${t.id}',
-              title: t.title.isNotEmpty ? t.title : 'Unknown Title',
-              artist: (t.artist != null && t.artist!.isNotEmpty)
-                  ? t.artist!
-                  : 'Unknown Artist',
-              artworkUrl: '',
-              artworkId: t.id, // MediaStore id for embedded album artwork.
-              streamUrl: t.data, // local file path — PlayerState reads this
-                                  // via isLocal to call setFilePath.
-              duration: Duration(milliseconds: t.duration ?? 0),
-              isDownloaded: true, // already "on device" by definition
-              isLocal: true,
-              fileSizeMb: t.size / (1024 * 1024),
-            ))
-        .toList();
+      final tracks = await _audioQuery.querySongs(
+        sortType: SongSortType.TITLE,
+        orderType: OrderType.ASC_OR_SMALLER,
+        uriType: UriType.EXTERNAL,
+        ignoreCase: true,
+      );
+
+      return tracks
+          .where((t) =>
+              t.isMusic == true && t.duration != null && t.duration! > 0)
+          .map((t) => Song(
+                id: 'local_${t.id}',
+                title: t.title.isNotEmpty ? t.title : 'Unknown Title',
+                artist: (t.artist != null && t.artist!.isNotEmpty)
+                    ? t.artist!
+                    : 'Unknown Artist',
+                artworkUrl: '',
+                artworkId: t.id,
+                streamUrl: t.data,
+                duration: Duration(milliseconds: t.duration ?? 0),
+                isDownloaded: true,
+                isLocal: true,
+                fileSizeMb: t.size / (1024 * 1024),
+              ))
+          .toList(growable: false);
+    } catch (e, stack) {
+      // A MediaStore/plugin failure must not terminate the Flutter process.
+      debugPrint('Local music query failed: $e');
+      debugPrintStack(stackTrace: stack);
+      return [];
+    }
   }
 }

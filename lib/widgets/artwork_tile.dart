@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
+import 'package:on_audio_query_pluse/on_audio_query.dart';
 
 import '../models/song.dart';
 import '../theme/app_theme.dart';
@@ -13,10 +13,6 @@ import '../theme/app_theme.dart';
 /// 1. Embedded artwork from Android MediaStore for local songs.
 /// 2. Cached remote artworkUrl for catalog songs.
 /// 3. A stable Infinite Music gradient placeholder.
-///
-/// Local artwork is loaded once per widget instance and kept stable while
-/// PlayerState rebuilds. This prevents the large player artwork from flashing
-/// between the artwork and gradient on every position update.
 class ArtworkTile extends StatefulWidget {
   final double size;
   final double radius;

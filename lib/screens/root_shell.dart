@@ -5,9 +5,8 @@ import 'search_screen.dart';
 import 'library_screen.dart';
 import 'profile_screen.dart';
 
-/// Main application shell. Four primary destinations remain intentionally
-/// simple; secondary destinations such as Settings and Privacy live behind
-/// Profile so the bottom navigation stays uncluttered.
+/// Main application shell. Secondary screens are created lazily so plugins
+/// used only by those screens cannot run during app startup.
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
 
@@ -17,22 +16,29 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   int _index = 0;
+  final List<Widget?> _screens = List<Widget?>.filled(4, null);
 
-  final _screens = const [
-    HomeScreen(),
-    SearchScreen(),
-    LibraryScreen(),
-    ProfileScreen(),
-  ];
+  Widget _currentScreen() {
+    final existing = _screens[_index];
+    if (existing != null) return existing;
+
+    final screen = switch (_index) {
+      0 => const HomeScreen(),
+      1 => const SearchScreen(),
+      2 => const LibraryScreen(),
+      3 => const ProfileScreen(),
+      _ => const HomeScreen(),
+    };
+    _screens[_index] = screen;
+    return screen;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
-          Expanded(
-            child: IndexedStack(index: _index, children: _screens),
-          ),
+          Expanded(child: _currentScreen()),
           const MiniPlayer(),
         ],
       ),
