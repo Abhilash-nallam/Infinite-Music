@@ -25,17 +25,6 @@ class _SearchScreenState extends State<SearchScreen> {
   String _query = '';
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final local = context.read<LocalMusicProvider>();
-      if (local.status == LocalMusicStatus.idle) {
-        local.scan();
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _controller.dispose();
     _debounce?.cancel();
