@@ -23,6 +23,13 @@ class LocalMusicProvider extends ChangeNotifier {
   bool _disposed = false;
   Future<void>? _scanFuture;
 
+  // The Library screen currently requests a scan during widget startup.
+  // Do not touch the native on_audio_query MethodChannel during app startup;
+  // the plugin has been observed to crash with "Reply already submitted".
+  // The first scan request is therefore a safe no-op. The user's Refresh
+  // action performs the real permission/query operation.
+  bool _skipFirstScan = true;
+
   LocalMusicStatus get status => _status;
   List<Song> get songs => List.unmodifiable(_songs);
   String? get error => _error;
@@ -31,12 +38,18 @@ class LocalMusicProvider extends ChangeNotifier {
 
   /// Runs only one MediaStore permission/query operation at a time.
   ///
-  /// Home/Search/Library are all created by IndexedStack. More than one of
-  /// them can request a scan during the same frame. on_audio_query_pluse uses
-  /// a native MethodChannel and concurrent permission/query calls can produce
-  /// "Reply already submitted" on Android. Reusing the same Future makes all
-  /// callers await one native operation instead of starting another one.
+  /// on_audio_query_pluse uses a native MethodChannel. Concurrent permission
+  /// or query calls can produce "Reply already submitted" on Android.
+  /// Reusing the same Future prevents overlapping native operations.
   Future<void> scan() {
+    if (_skipFirstScan) {
+      _skipFirstScan = false;
+      _status = LocalMusicStatus.ready;
+      _error = null;
+      if (!_disposed) notifyListeners();
+      return Future<void>.value();
+    }
+
     final active = _scanFuture;
     if (active != null) return active;
 
