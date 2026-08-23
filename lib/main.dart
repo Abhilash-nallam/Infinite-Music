@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,13 +14,11 @@ import 'services/app_preferences.dart';
 import 'services/library_store.dart';
 import 'services/sync_service.dart';
 import 'theme/app_theme.dart';
-import 'screens/branded_splash_screen.dart';
 
 const _configuredApiBaseUrl = String.fromEnvironment('INFINITE_MUSIC_API_BASE_URL');
 
 Future<void> main() async {
-  final binding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: binding);
+  WidgetsFlutterBinding.ensureInitialized();
 
   final audioHandler = await AudioService.init(
     builder: () => InfiniteAudioHandler(),
@@ -57,7 +54,6 @@ Future<void> main() async {
       backgroundHandler: audioHandler,
     ),
   );
-
 }
 
 class InfiniteMusicApp extends StatelessWidget {
@@ -87,7 +83,11 @@ class InfiniteMusicApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(value: library),
         ChangeNotifierProvider(
-          create: (_) => playerState ?? PlayerState(settings: settings, library: library, backgroundHandler: backgroundHandler),
+          create: (_) => playerState ?? PlayerState(
+            settings: settings,
+            library: library,
+            backgroundHandler: backgroundHandler,
+          ),
         ),
         ChangeNotifierProvider(
           create: (_) => CatalogProvider(
@@ -103,7 +103,7 @@ class InfiniteMusicApp extends StatelessWidget {
         title: 'Infinite Music',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
-        home: const BrandedSplashScreen(child: RootShell()),
+        home: const RootShell(),
       ),
     );
   }
