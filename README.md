@@ -1,74 +1,116 @@
-# Infinite Music (Flutter)
+# Infinite Music
 
-Offline-first music app. Catalog data flows:
+Infinite Music is an **offline-first Flutter music app** designed to make device music and a future cloud catalog feel like one library.
 
+## Product direction
+
+- Local device music must remain usable without internet.
+- A remote catalog is synchronized into a local Drift database.
+- Home, Search and Library read catalog data through `CatalogProvider`.
+- Playback is handled by `just_audio` + `audio_service` for background and notification controls.
+- The supplied Infinite Music branding remains the source of truth for the app icon and startup splash.
+- The cloud backend is deployed separately; the mobile repository does not contain the production backend.
+
+## Architecture
+
+```text
+Cloud backend
+    -> ApiService
+    -> SyncService
+    -> Drift / SQLite local catalog
+    -> CatalogProvider
+    -> Home / Search / Library
+
+Device MediaStore
+    -> LocalMusicService
+    -> LocalMusicProvider
+    -> Home / Search / My Device
+
+Song selection
+    -> PlayerState
+    -> InfiniteAudioHandler
+    -> just_audio
+    -> Android media notification / lock screen controls
 ```
-Backend (../infinite_music_backend) -> ApiService -> SyncService
-  -> AppDatabase (Drift, atomic) -> CatalogProvider -> Home / Library / Search
-```
 
-`CatalogProvider` is the single source of truth for catalog data — no
-screen reads `mock_data.dart` or talks to the database/API directly.
+The local database is the offline catalog cache. Sync applies additions, updates, deletions and the catalog cursor atomically so a failed sync cannot leave the cursor ahead of stored data.
 
-## Requirements
+## Android development
 
-- Flutter SDK (this project was last built against a 3.3+ compatible SDK —
-  check `pubspec.yaml`'s `environment:` field for the exact constraint)
-- The backend running separately (see `../infinite_music_backend/README.md`)
+### Requirements
 
-## Setup
+- Flutter stable
+- Android SDK / Android Studio
+- An Android emulator or physical Android device
+- The separate Infinite Music backend when testing cloud catalog sync
 
-```
+### Install and generate code
+
+```bash
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-The second command is **required**, not optional — it generates
-`lib/database/app_database.g.dart` from the Drift table definitions in
-`lib/database/tables.dart`. The app will not compile without it.
+### Analyze and test
 
-## Static analysis
-
-```
+```bash
 flutter analyze
-```
-
-## Run the test suite
-
-```
 flutter test
 ```
 
-Covers (in `test/`, **33 written test cases**):
-- `song_mapper_test.dart` — every SongRow field maps to Song correctly
-- `database_test.dart` — atomic sync commits, stale/regressive cursor rejection,
-  local offline search, and preservation of local liked/downloaded state during remote updates
-- `sync_service_test.dart` — full sync, delta sync, repeated no-op sync,
-  deletions, offline resilience, concurrent-sync coalescing, and end-to-end stale-version rejection
-- `catalog_provider_test.dart` — error handling, downloaded/liked filters,
-  search, like-toggling, all through the same provider the UI uses
+GitHub Actions runs the same dependency installation, Drift code generation, analysis and test suite on pushes to `main`/`cleanup-and-bugfix` and on pull requests to `main`.
 
-## Run the app
+### Run on Android emulator
 
-Start the backend first (separate terminal), then:
-
-```
-flutter run -d <device-id>
+```bash
+flutter run
 ```
 
-For the Android emulator specifically, the app defaults to
-`ApiService.forEmulator()`, which points at `http://10.0.2.2:3000` — that
-address is a special alias the emulator provides for your host machine's
-`localhost` and **only works from the emulator**. For a physical device on
-the same network, change `main.dart` to use
-`ApiService.forHost('192.168.x.x')` with your computer's actual LAN IP
-instead.
+The app uses `http://10.0.2.2:3000/api/v1` by default for emulator development. `10.0.2.2` is Android Emulator's alias for the host computer's localhost.
 
-## ⚠️ Verification status of this README's commands
+For a physical device on the same Wi-Fi network, pass the host machine's LAN address:
 
-The commands above were **not executed** by the assistant that wrote this
-project — the development sandbox used to build it has Node.js but no
-Flutter/Dart SDK available (network access is restricted to package
-registries, not Google's SDK distribution servers). Run all five commands
-above yourself; if `build_runner` or `analyze` surface anything, that needs
-fixing before this is genuinely done.
+```bash
+flutter run --dart-define=INFINITE_MUSIC_API_BASE_URL=http://192.168.x.x:3000/api/v1
+```
+
+For production, pass the HTTPS backend URL:
+
+```bash
+flutter build apk --release --dart-define=INFINITE_MUSIC_API_BASE_URL=https://your-api.example.com/api/v1
+```
+
+Release Android builds do **not** allow cleartext HTTP. Local HTTP is enabled only in debug builds.
+
+## Branding
+
+The source branding asset is:
+
+```text
+assets/icon/app_icon.png
+```
+
+It is intentionally kept unchanged for the launcher and Flutter branded splash. Obsolete duplicate branding assets and unused mock catalog data are not kept in the repository.
+
+## Current app capabilities
+
+- Local device music discovery
+- Offline catalog cache
+- Catalog delta synchronization
+- Offline search
+- Artwork caching
+- Full-screen and mini-player playback
+- Queue, shuffle and repeat controls
+- Android background playback and media notification
+- Persistent settings
+- Persistent liked songs and playlists
+- Privacy/permission screen
+- Infinite Music branded startup experience
+
+## Backend
+
+The production backend is intentionally separate from this Flutter repository. The mobile app only depends on its documented catalog-sync API contract. The planned production infrastructure can use the low-cost Oracle Cloud deployment discussed for Infinite Music, with HTTPS used by release builds.
+
+## Repository hygiene
+
+Generated build output, Dart tooling caches, coverage output, obsolete patch-note files, unused mock data and duplicate unused branding assets should stay out of the repository. The Android platform configuration is retained because Android is the current launch target.
