@@ -21,6 +21,7 @@ class LocalMusicProvider extends ChangeNotifier {
   List<Song> _songs = const [];
   String? _error;
   bool _disposed = false;
+  Future<void>? _scanFuture;
 
   LocalMusicStatus get status => _status;
   List<Song> get songs => List.unmodifiable(_songs);
@@ -28,12 +29,30 @@ class LocalMusicProvider extends ChangeNotifier {
   bool get isLoading => _status == LocalMusicStatus.loading;
   bool get hasPermission => _status == LocalMusicStatus.ready;
 
-  Future<void> scan() async {
-    if (_status == LocalMusicStatus.loading) return;
+  /// Runs only one MediaStore permission/query operation at a time.
+  ///
+  /// Home/Search/Library are all created by IndexedStack. More than one of
+  /// them can request a scan during the same frame. on_audio_query_pluse uses
+  /// a native MethodChannel and concurrent permission/query calls can produce
+  /// "Reply already submitted" on Android. Reusing the same Future makes all
+  /// callers await one native operation instead of starting another one.
+  Future<void> scan() {
+    final active = _scanFuture;
+    if (active != null) return active;
 
+    final future = _performScan();
+    _scanFuture = future;
+    return future.whenComplete(() {
+      if (identical(_scanFuture, future)) {
+        _scanFuture = null;
+      }
+    });
+  }
+
+  Future<void> _performScan() async {
     _status = LocalMusicStatus.loading;
     _error = null;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
 
     try {
       final granted = await service.requestPermission();
