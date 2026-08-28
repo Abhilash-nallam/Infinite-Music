@@ -169,20 +169,54 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Escapes SQLite LIKE metacharacters (`%`, `_`, and the escape character
+  /// itself) in raw user input. Without this, a search for a literal string
+  /// containing `%` or `_` (e.g. "100% Pure", "under_score") is silently
+  /// reinterpreted as a wildcard pattern instead of matched literally —
+  /// the LIKE-wildcard-injection bug tracked from the repo audit. `\` is
+  /// used as the escape character and is declared via `ESCAPE '\'` in the
+  /// query itself.
+  static String _escapeLikeMetacharacters(String raw) {
+    return raw
+        .replaceAll('\\', '\\\\')
+        .replaceAll('%', '\\%')
+        .replaceAll('_', '\\_');
+  }
+
+  static const String _searchSql = r'''
+SELECT * FROM songs
+WHERE title LIKE ?1 ESCAPE '\'
+   OR artist LIKE ?2 ESCAPE '\'
+   OR album_name LIKE ?3 ESCAPE '\'
+ORDER BY title ASC
+''';
+
+  /// Drift's typed `.like()` has no way to attach an `ESCAPE` clause, so the
+  /// search predicate is written as raw SQL via `customSelect` instead —
+  /// still fully parameterized (no string concatenation of user input into
+  /// the SQL itself), just not expressed through the typed query builder.
+  /// `readsFrom: {songs}` keeps `.watch()` reactive to writes on `songs`,
+  /// exactly like the typed query builder would be.
+  Selectable<SongRow> _searchSelectable(String trimmedQuery) {
+    final pattern = '%${_escapeLikeMetacharacters(trimmedQuery)}%';
+    return customSelect(
+      _searchSql,
+      variables: [
+        Variable.withString(pattern),
+        Variable.withString(pattern),
+        Variable.withString(pattern),
+      ],
+      readsFrom: {songs},
+    ).map((row) => songs.map(row.data));
+  }
+
   /// Audit fix (#5): local, offline-capable search across title, artist,
   /// and album name. This is the PRIMARY search path — the backend's
   /// /search endpoint is a secondary/future capability only, per the audit.
   Future<List<SongRow>> searchSongs(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
-    final pattern = '%$trimmed%';
-    return (select(songs)
-          ..where((t) =>
-              t.title.like(pattern) |
-              t.artist.like(pattern) |
-              t.albumName.like(pattern))
-          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
-        .get();
+    return _searchSelectable(trimmed).get();
   }
 
   /// Reactive variant for a live-updating search UI (updates automatically
@@ -190,14 +224,7 @@ class AppDatabase extends _$AppDatabase {
   Stream<List<SongRow>> watchSearchSongs(String query) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return Stream.value(const []);
-    final pattern = '%$trimmed%';
-    return (select(songs)
-          ..where((t) =>
-              t.title.like(pattern) |
-              t.artist.like(pattern) |
-              t.albumName.like(pattern))
-          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
-        .watch();
+    return _searchSelectable(trimmed).watch();
   }
 }
 

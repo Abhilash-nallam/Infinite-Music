@@ -164,6 +164,39 @@ void main() {
       final results = await db.searchSongs('doesnotexist');
       expect(results, isEmpty);
     });
+
+    group('LIKE-wildcard injection fix', () {
+      setUp(() async {
+        await db.applySyncResult(
+          upserts: [
+            _song('s4', title: '100% Pure', artist: 'Various'),
+            _song('s5', title: 'Under_score', artist: 'Various'),
+          ],
+          deletedIds: [],
+          newCatalogVersion: 4,
+        );
+      });
+
+      test('a literal "%" in the query is matched literally, not as a wildcard', () async {
+        final results = await db.searchSongs('100%');
+        // Before the fix, "100%" would match anything starting with "100"
+        // (e.g. any song titled "100 Reasons") because "%" was interpreted
+        // as a SQL wildcard instead of the literal character the user typed.
+        expect(results.map((r) => r.id), ['s4']);
+      });
+
+      test('a literal "_" in the query does not match arbitrary single characters', () async {
+        // Before the fix, "_" matched any single character, so "underXscore"
+        // would incorrectly match too. Only the literal underscore should.
+        final results = await db.searchSongs('under_score');
+        expect(results.map((r) => r.id), ['s5']);
+      });
+
+      test('"%" alone does not degrade into matching the entire catalog', () async {
+        final results = await db.searchSongs('%');
+        expect(results, isEmpty);
+      });
+    });
   });
 
   group('AppDatabase.setLiked / setDownloaded', () {
